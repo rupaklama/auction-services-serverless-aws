@@ -1,0 +1,23 @@
+# "org" ensures this Service is used with the correct Serverless Framework Access Key.
+org: rupaklama
+# "service" is the name of this project. This will also be added to your AWS resource names.
+service: auction-service
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: us-east-1
+
+
+# resources:
+#   Resources:
+    
+   
+
+functions:
+  createAuction:
+    handler: handlers/createAuction.handler
+    events:
+      - httpApi:
+          path: /auction
+          method: post
