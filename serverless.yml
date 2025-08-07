@@ -7,11 +7,39 @@ provider:
   name: aws
   runtime: nodejs22.x
   region: us-east-1
+  stage: ${opt:stage, 'dev'} # Default stage is "dev" if not provided.
+
+  environment:
+    # Environment variables can be used to pass configuration to your Lambda functions.
+    # These will be available in the Lambda function code as process.env.<VARIABLE_NAME>.
+    AUCTIONS_TABLE: AuctionsTable-${self:provider.stage}
+    HOST_REGION: ${self:provider.region}
+
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:PutItem
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:UpdateItem
+
+      Resource:
+        - arn:aws:dynamodb:${self:provider.region}:${env:AWS_ACCOUNT_ID}:table/AuctionsTable-${self:provider.stage}
 
 
-# resources:
-#   Resources:
-    
+resources:
+  Resources:
+    AuctionsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: AuctionsTable-${self:provider.stage}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
    
 
 functions:
@@ -21,3 +49,24 @@ functions:
       - httpApi:
           path: /auction
           method: post
+  
+  getAuctions:
+    handler: handlers/getAuctions.handler
+    events:
+      - httpApi:
+          path: /auctions
+          method: get
+
+  getAuction:
+    handler: handlers/getAuction.handler
+    events:
+      - httpApi:
+          path: /auction/{id}
+          method: get
+
+  placeBid:
+    handler: handlers/placeBid.handler
+    events:
+      - httpApi:
+          path: /auction/{id}/bid
+          method: put

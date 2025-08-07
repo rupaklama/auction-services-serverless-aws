@@ -1,29 +1,33 @@
 import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb'
 import { marshall } from '@aws-sdk/util-dynamodb'
+import { randomUUID } from 'crypto';
 
-const client = new DynamoDBClient({ region: 'us-east-1' })
+
+const client = new DynamoDBClient({ region: process.env.HOST_REGION })
 
 export const handler = async (event, context) => {
   try {
-    const { title, startingBid, endTime } = JSON.parse(event.body)
+    const { title } = JSON.parse(event.body)
 
-    if (!title || !startingBid || !endTime) {
+    if (!title) {
       return {
         statusCode: 400,
         body: JSON.stringify({ message: 'Missing required fields' }),
       }
     }
 
-    const auctionId = `auction-${Date.now()}`
+    const auctionId = randomUUID()
 
     const params = {
-      TableName: 'Auctions',
+      TableName: process.env.AUCTIONS_TABLE,
       Item: marshall({
-        auctionId,
+        id: auctionId,
         title,
-        startingBid,
-        endTime,
+        status: 'OPEN',
         createdAt: new Date().toISOString(),
+        highestBid: {
+          amount: 0,
+        },
       }),
     }
 
