@@ -1,15 +1,26 @@
-import { DynamoDBClient, ScanCommand } from '@aws-sdk/client-dynamodb'
+import { DynamoDBClient, QueryCommand } from '@aws-sdk/client-dynamodb'
 import { unmarshall } from '@aws-sdk/util-dynamodb'
 
 const client = new DynamoDBClient({ region: process.env.HOST_REGION })
 
 export const handler = async (event, context) => {
+  const { status } = event.queryStringParameters
+
   try {
     const params = {
       TableName: process.env.AUCTIONS_TABLE,
+      IndexName: 'StatusEndingAtIndex',
+      KeyConditionExpression: '#status = :status',
+      ExpressionAttributeNames: {
+        '#status': 'status',
+      },
+      ExpressionAttributeValues: {
+        ':status': { S: status },
+      },
     }
 
-    const { Items } = await client.send(new ScanCommand(params))
+    // Query the DynamoDB table using QueryCommand not ScanCommand
+    const { Items } = await client.send(new QueryCommand(params))
 
     return {
       statusCode: 200,

@@ -18,13 +18,17 @@ export const handler = async (event, context) => {
 
     const auctionId = randomUUID()
 
+    const createdAt = new Date().toISOString();
+    const endingAt = new Date(Date.now() + 1000 * 60 * 60).toISOString(); // 1 hour from now
+
     const params = {
       TableName: process.env.AUCTIONS_TABLE,
       Item: marshall({
         id: auctionId,
         title,
         status: 'OPEN',
-        createdAt: new Date().toISOString(),
+        createdAt,
+        endingAt,
         highestBid: {
           amount: 0,
         },

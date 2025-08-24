@@ -22,9 +22,11 @@ provider:
         - dynamodb:Scan
         - dynamodb:GetItem
         - dynamodb:UpdateItem
+        - dynamodb:Query
 
       Resource:
         - arn:aws:dynamodb:${self:provider.region}:${env:AWS_ACCOUNT_ID}:table/AuctionsTable-${self:provider.stage}
+        - arn:aws:dynamodb:${self:provider.region}:${env:AWS_ACCOUNT_ID}:table/AuctionsTable-${self:provider.stage}/index/StatusEndingAtIndex
 
 
 resources:
@@ -36,10 +38,39 @@ resources:
         AttributeDefinitions:
           - AttributeName: id
             AttributeType: S
+
+            # global secondary indexes (GSI) require attribute definitions for their keys
+          - AttributeName: status
+            AttributeType: S
+          - AttributeName: endingAt
+            AttributeType: S
+
+        # Primary key for the table
         KeySchema:
           - AttributeName: id
             KeyType: HASH
         BillingMode: PAY_PER_REQUEST
+
+
+        # Global Secondary Indexes (GSI) allow querying by status and endingAt
+        GlobalSecondaryIndexes:
+          - IndexName: StatusEndingAtIndex
+            KeySchema:
+              # partition key to query by status (OPEN/CLOSED)
+              - AttributeName: status
+                KeyType: HASH
+              # sort key to filter/sort by endingAt
+              - AttributeName: endingAt
+                KeyType: RANGE
+
+            # ProvisionedThroughput is not needed for PAY_PER_REQUEST billing mode
+            # Projection specifies which attributes to return in the query results
+            # ALL means all attributes will be returned
+            # If you want to return only specific attributes, you can use KEYS_ONLY or INCLUDE
+            # KEYS_ONLY returns only the keys of the items
+            # INCLUDE allows you to specify additional attributes to return
+            Projection:
+              ProjectionType: ALL
    
 
 functions:
@@ -70,3 +101,10 @@ functions:
       - httpApi:
           path: /auction/{id}/bid
           method: put
+
+  processAuctions:
+    handler: handlers/processAuctions.handler
+    events:
+      - schedule: 
+          rate: rate(1 minute)
+          enabled: false
