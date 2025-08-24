@@ -9,6 +9,12 @@ provider:
   region: us-east-1
   stage: ${opt:stage, 'dev'} # Default stage is "dev" if not provided.
 
+  httpApi:
+    authorizers:
+      authorizer:
+        type: request
+        functionName: authorizer
+
   environment:
     # Environment variables can be used to pass configuration to your Lambda functions.
     # These will be available in the Lambda function code as process.env.<VARIABLE_NAME>.
@@ -115,6 +121,9 @@ functions:
       - httpApi:
           path: /auctions
           method: get
+          authorizer: 
+            name: authorizer
+            arn: arn:aws:lambda:${self:provider.region}:${env:AWS_ACCOUNT_ID}:function:auction-service-${self:provider.stage}-authorizer
           
 
   getAuction:
@@ -123,6 +132,9 @@ functions:
       - httpApi:
           path: /auction/{id}
           method: get
+          authorizer: 
+            name: authorizer
+            arn: arn:aws:lambda:${self:provider.region}:${env:AWS_ACCOUNT_ID}:function:auction-service-${self:provider.stage}-authorizer
 
   placeBid:
     handler: handlers/placeBid.handler
@@ -130,6 +142,9 @@ functions:
       - httpApi:
           path: /auction/{id}/bid
           method: put
+          authorizer: 
+            name: authorizer
+            arn: arn:aws:lambda:${self:provider.region}:${env:AWS_ACCOUNT_ID}:function:auction-service-${self:provider.stage}-authorizer
 
   processAuctions:
     handler: handlers/processAuctions.handler
