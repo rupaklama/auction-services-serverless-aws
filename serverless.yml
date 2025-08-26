@@ -9,18 +9,20 @@ provider:
   region: us-east-1
   stage: ${opt:stage, 'dev'} # Default stage is "dev" if not provided.
 
-  httpApi:
-    authorizers:
-      authorizer:
-        type: request
-        functionName: authorizer
+  # httpApi:
+  #   authorizers:
+  #     function: authorizer
+  #     cognitoAuthorizer:
+  #       type: jwt
+  #       identitySource: $request.header.Authorization      
 
   environment:
     # Environment variables can be used to pass configuration to your Lambda functions.
     # These will be available in the Lambda function code as process.env.<VARIABLE_NAME>.
     AUCTIONS_TABLE: AuctionsTable-${self:provider.stage}
     HOST_REGION: ${self:provider.region}
-    AUTH0_PUBLIC_KEY: ${env:AUTH0_PUBLIC_KEY}
+    
+
 
   iamRoleStatements:
     - Effect: Allow
@@ -79,28 +81,6 @@ resources:
             Projection:
               ProjectionType: ALL
 
-    # This response is needed for custom authorizer failures cors support ¯\_(ツ)_/¯
-    # 401 Unauthorized responses for expired tokens and auth failures
-    GatewayResponse:
-      Type: 'AWS::ApiGateway::GatewayResponse'
-      Properties:
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: "'*'"
-        ResponseType: EXPIRED_TOKEN
-        RestApiId:
-          Ref: 'ApiGatewayRestApi'
-        StatusCode: '401'
-    AuthFailureGatewayResponse:
-      Type: 'AWS::ApiGateway::GatewayResponse'
-      Properties:
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: "'*'"
-        ResponseType: UNAUTHORIZED
-        RestApiId:
-          Ref: 'ApiGatewayRestApi'
-        StatusCode: '401'
    
 
 functions:
@@ -110,9 +90,8 @@ functions:
       - httpApi:
           path: /auction
           method: post
-          authorizer: 
-            name: authorizer
-            arn: arn:aws:lambda:${self:provider.region}:${env:AWS_ACCOUNT_ID}:function:auction-service-${self:provider.stage}-authorizer
+          # authorizer: authorizer
+          
 
   
   getAuctions:
@@ -121,9 +100,7 @@ functions:
       - httpApi:
           path: /auctions
           method: get
-          authorizer: 
-            name: authorizer
-            arn: arn:aws:lambda:${self:provider.region}:${env:AWS_ACCOUNT_ID}:function:auction-service-${self:provider.stage}-authorizer
+          
           
 
   getAuction:
@@ -132,9 +109,7 @@ functions:
       - httpApi:
           path: /auction/{id}
           method: get
-          authorizer: 
-            name: authorizer
-            arn: arn:aws:lambda:${self:provider.region}:${env:AWS_ACCOUNT_ID}:function:auction-service-${self:provider.stage}-authorizer
+         
 
   placeBid:
     handler: handlers/placeBid.handler
@@ -142,10 +117,7 @@ functions:
       - httpApi:
           path: /auction/{id}/bid
           method: put
-          authorizer: 
-            name: authorizer
-            arn: arn:aws:lambda:${self:provider.region}:${env:AWS_ACCOUNT_ID}:function:auction-service-${self:provider.stage}-authorizer
-
+          
   processAuctions:
     handler: handlers/processAuctions.handler
     events:
@@ -157,9 +129,8 @@ functions:
   # This function will be used to validate JWT tokens and authorize access to protected resources.
   authorizer:
     handler: auth/auth.handler
-    cors: true
-
-  # Public and private endpoints for testing the custom authorizer
+ 
+   # Public and private endpoints for testing the custom authorizer
   # These endpoints can be used to test the custom authorizer functionality.
   # The public endpoint does not require authorization, while the private endpoint does.  
   publicEndpoint:

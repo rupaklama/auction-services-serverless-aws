@@ -1,9 +1,27 @@
-import jwt from 'jsonwebtoken'
+export async function handler(event, context) {
+  // Cognito Authorizer automatically validates the token and populates the requestContext with user claims
+  const claims = event.requestContext.authorizer.claims;
 
-// By default, API Gateway authorizations are cached (TTL) for 300 seconds.
-// This policy will allow to execute any other lambdas on the same APIGateway after token verification, thus being efficient and optimizing costs.
-const generatePolicy = (principalId, methodArn) => {
-  const apiGatewayWildcard = methodArn.split('/', 2).join('/') + '/*'
+  if (!claims) {
+    throw 'Unauthorized';
+  }
+
+  const principalId = claims.sub;
+
+  // Generate an IAM policy
+  const policy = generatePolicy(principalId, 'Allow', event.methodArn);
+
+  return {
+    ...policy,
+    context: claims, // Pass claims as additional context
+  };
+}
+
+// Helper function to generate an IAM policy
+function generatePolicy(principalId, effect, resource) {
+  if (!effect || !resource) {
+    throw new Error('Effect and resource are required to generate a policy');
+  }
 
   return {
     principalId,
@@ -12,32 +30,10 @@ const generatePolicy = (principalId, methodArn) => {
       Statement: [
         {
           Action: 'execute-api:Invoke',
-          Effect: 'Allow',
-          Resource: apiGatewayWildcard,
+          Effect: effect,
+          Resource: resource,
         },
       ],
     },
-  }
-}
-
-export async function handler(event, context) {
-  if (!event.authorizationToken) {
-    throw 'Unauthorized'
-  }
-
-  const token = event.authorizationToken.replace('Bearer ', '')
-
-  try {
-    const claims = jwt.verify(token, process.env.AUTH0_PUBLIC_KEY)
-    const policy = generatePolicy(claims.sub, event.methodArn)
-
-    return {
-      ...policy,
-      // context is used to pass additional information to the Lambda function
-      context: claims,
-    }
-  } catch (error) {
-    console.log(error)
-    throw 'Unauthorized'
-  }
+  };
 }
