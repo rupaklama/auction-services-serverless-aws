@@ -21,6 +21,9 @@ provider:
     # These will be available in the Lambda function code as process.env.<VARIABLE_NAME>.
     AUCTIONS_TABLE: AuctionsTable-${self:provider.stage}
     HOST_REGION: ${self:provider.region}
+    AUCTIONS_SNS_TOPIC_ARN:
+      # Get the ARN of the SNS topic created in the "resources" section below 
+      Ref: AuctionSNSTopic
     
 
 
@@ -37,6 +40,12 @@ provider:
         - arn:aws:dynamodb:${self:provider.region}:${env:AWS_ACCOUNT_ID}:table/AuctionsTable-${self:provider.stage}
         - arn:aws:dynamodb:${self:provider.region}:${env:AWS_ACCOUNT_ID}:table/AuctionsTable-${self:provider.stage}/index/StatusEndingAtIndex
 
+       # This policy allows the Lambda function to publish messages to the SNS topic
+    - Effect: Allow
+      Action:
+        - sns:Publish
+      Resource:
+        - Ref: AuctionSNSTopic
 
 resources:
   Resources:
@@ -81,6 +90,20 @@ resources:
             Projection:
               ProjectionType: ALL
 
+    AuctionSNSTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: AuctionSNSTopic-${self:provider.stage}
+
+    AuctionSNSSubscription:
+      Type: AWS::SNS::Subscription
+      Properties:
+        Protocol: email
+        TopicArn:
+          Ref: AuctionSNSTopic
+        Endpoint: ${env:NOTIFICATION_EMAIL}  
+
+    
    
 
 functions:
@@ -149,3 +172,11 @@ functions:
           method: POST
           authorizer: authorizer
           cors: true
+
+  sendEmail:
+    handler: handlers/sendEmail.handler
+    events:
+      - sns:
+          arn:
+            Ref: AuctionSNSTopic
+          topicName: AuctionSNSTopic-${self:provider.stage}
