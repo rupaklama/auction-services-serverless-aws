@@ -20,10 +20,18 @@ provider:
     # Environment variables can be used to pass configuration to your Lambda functions.
     # These will be available in the Lambda function code as process.env.<VARIABLE_NAME>.
     AUCTIONS_TABLE: AuctionsTable-${self:provider.stage}
+
     HOST_REGION: ${self:provider.region}
+
     AUCTIONS_SNS_TOPIC_ARN:
       # Get the ARN of the SNS topic created in the "resources" section below 
       Ref: AuctionSNSTopic
+
+    AUCTIONS_SQS_QUEUE_URL:
+      # Fn::GetAtt function to retrieve the URL of the SQS queue
+      Fn::GetAtt:
+        - AuctionMailQueue
+        - QueueUrl
     
 
 
@@ -46,6 +54,17 @@ provider:
         - sns:Publish
       Resource:
         - Ref: AuctionSNSTopic
+
+      # This policy allows the Lambda function to send messages to and receive messages from the SQS queue
+    - Effect: Allow
+      Action:
+        - sqs:SendMessage
+        - sqs:ReceiveMessage
+        - sqs:DeleteMessage
+        - sqs:GetQueueAttributes
+      Resource:
+        - arn:aws:sqs:${self:provider.region}:${env:AWS_ACCOUNT_ID}:AuctionMailQueue-${self:provider.stage}
+
 
 resources:
   Resources:
@@ -103,7 +122,10 @@ resources:
           Ref: AuctionSNSTopic
         Endpoint: ${env:NOTIFICATION_EMAIL}  
 
-    
+    AuctionMailQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: AuctionMailQueue-${self:provider.stage}
    
 
 functions:
@@ -180,3 +202,16 @@ functions:
           arn:
             Ref: AuctionSNSTopic
           topicName: AuctionSNSTopic-${self:provider.stage}
+
+      # The sendEmail function is triggered by messages in the SQS queue
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - AuctionMailQueue
+              - Arn
+          # Batch size defines how many messages to process at once - one email at a time
+          # default batchSize is 10
+          batchSize: 1
+
+  
+ 
