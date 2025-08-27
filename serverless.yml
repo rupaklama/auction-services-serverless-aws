@@ -27,11 +27,11 @@ provider:
       # Get the ARN of the SNS topic created in the "resources" section below 
       Ref: AuctionSNSTopic
 
-    AUCTIONS_SQS_QUEUE_URL:
+    AUCTIONS_SQS_QUEUE_URL: https://sqs.${self:provider.region}.amazonaws.com/${env:AWS_ACCOUNT_ID}/AuctionMailQueue-${self:provider.stage}  
       # Fn::GetAtt function to retrieve the URL of the SQS queue
-      Fn::GetAtt:
-        - AuctionMailQueue
-        - QueueUrl
+      # Fn::GetAtt:
+      #   - AuctionMailQueue
+      #   - QueueUrl
     
 
 

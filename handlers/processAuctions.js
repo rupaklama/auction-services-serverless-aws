@@ -1,9 +1,16 @@
 import { DynamoDBClient, QueryCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb'
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb'
+import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs'
+
+// create an SQS client
+const sqsClient = new SQSClient({
+  region: 'us-east-1',
+})
 
 const client = new DynamoDBClient({ region: process.env.HOST_REGION })
 
 export const handler = async () => {
+  const queueUrl = process.env.AUCTIONS_SQS_QUEUE_URL
   const now = new Date()
 
   try {
@@ -30,19 +37,32 @@ export const handler = async () => {
     const updatePromises = auctions.Items.map(async auction => {
       const unmarshalledAuction = unmarshall(auction); // Unmarshall the auction object
       const updateParams = {
-        TableName: process.env.AUCTIONS_TABLE,
-        Key: marshall({ id: unmarshalledAuction.id }), // Use the unmarshalled id
-        UpdateExpression: 'SET #status = :status',
-        ExpressionAttributeNames: {
-          '#status': 'status',
-        },
-        ExpressionAttributeValues: marshall({
-          ':status': 'CLOSE',
-        }),
+      TableName: process.env.AUCTIONS_TABLE,
+      Key: marshall({ id: unmarshalledAuction.id }), // Use the unmarshalled id
+      UpdateExpression: 'SET #status = :status',
+      ExpressionAttributeNames: {
+        '#status': 'status',
+      },
+      ExpressionAttributeValues: marshall({
+        ':status': 'CLOSE',
+      }),
       }
 
-      return client.send(new UpdateItemCommand(updateParams))
-    })
+      // Update the auction status to CLOSE
+      await client.send(new UpdateItemCommand(updateParams));
+
+      // Send message to SQS
+      const messageBody = JSON.stringify({
+      email: "rupaklamadeveloper@gmail.com",
+      subject: "auction closed",
+      message: "The auction is closed now!"
+      });
+
+      await sqsClient.send(new SendMessageCommand({
+      QueueUrl: queueUrl,
+      MessageBody: messageBody,
+      }));
+    });
 
     await Promise.all(updatePromises)
 

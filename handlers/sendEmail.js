@@ -11,7 +11,7 @@ const snsClient = new SNSClient({
   region: 'us-east-1',
 })
 
-// serverless invoke local --function sendEmail --data '{"email": "rupaklamadeveloper@gmail.com", "subject": "test", "message": "test sns email"}'
+// serverless invoke local --function sendEmail --data '{"email": "rupaklamadeveloper@gmail.com", "subject": "auction closed", "message": "The auction is closed now!"}'
 
 export const handler = async () => {
   const queueUrl = process.env.AUCTIONS_SQS_QUEUE_URL;
